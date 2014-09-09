@@ -11,8 +11,8 @@ import (
 var NormeDebug bool
 
 type Norme struct {
-	File   os.File
-	Reader io.Reader
+	File   *os.File
+	Reader *bufio.Reader
 	Errors []*NormeError
 	Debug  *bool
 }
@@ -37,10 +37,19 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+		norme.File = f
 
 		if *norme.Debug == true {
 			fmt.Println("Open file: " + filename)
 		}
-		norme.File = bufio.NewReader(f)
+		norme.Reader = bufio.NewReader(f)
+
+		for {
+			line, err := norme.Reader.ReadString('\n')
+			if err == io.EOF {
+				break
+			}
+			fmt.Print(line)
+		}
 	}
 }
