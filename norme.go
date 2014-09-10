@@ -12,11 +12,11 @@ import (
 var Debug *bool
 
 type Norme struct {
-	Name   string
-	File   *os.File
-	Reader *bufio.Reader
-	Errors []*NormeError
-	Debug  *bool
+	Name    string
+	File    *os.File
+	Reader  *bufio.Reader
+	Errors  []*NormeError
+	InScope bool
 }
 
 type NormeError struct {
@@ -68,6 +68,17 @@ func (this *Norme) CheckInclude(line string, line_number int) {
 	}
 }
 
+func (this *Norme) CheckPrototype(line string, line_number int) {
+	var validPrototypeLine = regexp.MustCompile(`^[a-z0-9 _]+[ \t]+[a-z0-9_]+\([a-z0-9 *_]+\)\;\n$`)
+
+	if validPrototypeLine.MatchString(line) == false {
+		n_error := new(NormeError)
+		n_error.Line = line_number
+		n_error.Message = "Prototype: bad format"
+		this.Errors = append(this.Errors, n_error)
+	}
+}
+
 func CheckFile(filename string) {
 	norme := new(Norme)
 	norme.Name = filename
@@ -79,6 +90,7 @@ func CheckFile(filename string) {
 	}
 	norme.File = f
 	norme.Reader = bufio.NewReader(f)
+	norme.InScope = false
 	DebugMessage("New bufio Reader")
 
 	line_count := 1
@@ -90,9 +102,21 @@ func CheckFile(filename string) {
 		if line_count < 12 {
 			norme.CheckHeader(line, line_count)
 		}
-		if line[0] == '#' {
+
+		pre_include_check := regexp.MustCompile(`^#.*`)
+		pre_func_check := regexp.MustCompile(`^.*\)\n{$`)
+		pre_proto_check := regexp.MustCompile(`^.*\)\;\n$`)
+
+		if pre_include_check.MatchString(line) {
 			norme.CheckInclude(line, line_count)
+		} else if pre_func_check.MatchString(line) {
+			DebugMessage("Detect function entry line")
+			norme.InScope = true
+		} else if pre_proto_check.MatchString(line) && norme.InScope == false {
+			DebugMessage("Detect prototype line")
+			norme.CheckPrototype(line, line_count)
 		}
+
 		line_count++
 	}
 	norme.PrintErrors()
