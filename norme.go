@@ -47,12 +47,23 @@ func (this *Norme) CheckHeader(line string, line_number int) {
 	if len(line) > 81 {
 		n_error := new(NormeError)
 		n_error.Line = line_number
-		n_error.Message = "Corrupted Header: more than 80 chars"
+		n_error.Message = "Header: more than 80 chars"
 		this.Errors = append(this.Errors, n_error)
 	} else if validCommentLine.MatchString(line) == false {
 		n_error := new(NormeError)
 		n_error.Line = line_number
-		n_error.Message = "Corrupted Header: Not a comment line"
+		n_error.Message = "Header: Not a comment line"
+		this.Errors = append(this.Errors, n_error)
+	}
+}
+
+func (this *Norme) CheckInclude(line string, line_number int) {
+	var validIncludeLine = regexp.MustCompile(`^#include [<|"].*[>|"]\n$`)
+
+	if validIncludeLine.MatchString(line) == false {
+		n_error := new(NormeError)
+		n_error.Line = line_number
+		n_error.Message = "Include: bad format"
 		this.Errors = append(this.Errors, n_error)
 	}
 }
@@ -78,6 +89,9 @@ func CheckFile(filename string) {
 		}
 		if line_count < 12 {
 			norme.CheckHeader(line, line_count)
+		}
+		if line[0] == '#' {
+			norme.CheckInclude(line, line_count)
 		}
 		line_count++
 	}
